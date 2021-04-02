@@ -1,0 +1,373 @@
+#!/bin/bash
+######### GOG ARCHIVER #########
+# GOG  archiver  is  a  fairly #
+# simple self-contained script #
+# used to download and archive #
+# games from gog.com.          #
+# Licensed under AGPL 3.0      #
+# By Marko Zajc                #
+################################
+
+VERSION="1.0"
+
+# Argument parsing
+COLOUR='less';
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+	key="$1";
+	case $key in
+		-p|--platforms)
+			PLATFORMS="$2";
+			shift; shift;
+		;;
+		-r|--root)
+			GAR_ROOT="$2";
+			shift; shift;
+		;;
+		-c|--colour|--color)
+			COLOUR="$2";
+			shift; shift;
+		;;
+		-g|--games)
+			GAMES="$2";
+			shift; shift;
+		;;
+		-h|--help)
+			SHOWHELP=true;
+			shift;
+		;;
+		-b|--no-banner)
+			NOBANNER=true;
+			shift;
+		;;
+		-v|--version)
+			SHOWVERSION=true;
+			shift;
+		;;
+		*)   
+			POSITIONAL+=("$1");
+			shift;
+		;;
+	esac;
+done;
+
+# Constants
+case $COLOUR in
+	none)
+	;;
+	some)
+		R='\033[0m'
+		ERRORCOLOUR='\033[01;31m'
+		INFOCOLOUR='\033[00;32m'
+		DEBUGCOLOUR='\033[01;36m'
+		TEXT=$R
+	;;
+	less)
+		R='\033[0m'
+		ERRORCOLOUR='\033[01;31m'
+		INFOCOLOUR='\033[00;32m'
+		DEBUGCOLOUR='\033[01;36m'
+		DETAIL='\033[01;37m'
+		LOW='\033[01;30m'
+		TEXT=$R
+	;;
+	*)
+		R='\033[0m'
+		ERRORCOLOUR='\033[01;31m'
+		INFOCOLOUR='\033[00;32m'
+		DEBUGCOLOUR='\033[01;36m'
+		DETAIL='\033[01;34m'
+		LOW='\033[01;30m'
+		TEXT='\033[01;37m'
+	;;
+esac;
+INFO="${TEXT}[${INFOCOLOUR}INFO$TEXT]$R "
+ERROR="${TEXT}[${ERRORCOLOUR}ERROR$TEXT]$R "
+DEBUG="${TEXT}[${DEBUGCOLOUR}DEBUG$TEXT]$R "
+DOWNLOADS_ROOT='download'
+DEPENDENCIES=( jq perl wget )
+
+# Parameters:
+# - message
+# Returns: the log line
+log() {
+	echo -e "$TEXT$1$R";
+}
+
+# Parameters:
+# - message
+# Returns: the log line
+banner() {
+	if [ -v NOBANNER ]; then
+		return 0;
+	fi;
+	log "GOG archiver $DETAIL$VERSION$TEXT by ${DETAIL}Marko Zajc$TEXT.";
+}
+
+# Parameters:
+# - message
+# Returns: the log line
+elog() {
+	log "$ERROR$1";
+}
+
+# Parameters:
+# - message
+# Returns: the log line
+ilog() {
+	log "$INFO$1";
+}
+
+# Parameters:
+# - message
+# Returns: the log line
+dlog() {
+	true #echo -e "$DEBUG$TEXT$1$R";
+}
+
+# Parameters: none
+# Returns: nothing
+check_files() {
+	if [ ! -s "$GAR_ROOT/authorization.txt" ]; then
+		touch "$GAR_ROOT/authorization.txt"
+		elog "Authorization cookie not found. Please log into your GOG account in a browser, and";
+		elog "copy the ${DETAIL}gog-al$TEXT cookie into $DETAIL$GAR_ROOT/authorization$TEXT.";
+		elog "Copy just the cookie value, not including the 'gog-alc' part or any quotation marks";
+		elog "or apostrophes.";
+		exit 1;
+	fi
+}
+
+# Configuration
+[ -v GAR_ROOT ] || GAR_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )";
+check_files;
+AUTH=$(head -n 1 "$GAR_ROOT/authorization")
+DOWNLOAD_LOCATION="$GAR_ROOT/gog_download"
+
+# Parameters:
+# - log
+# Returns: self user metadata json
+get_selfuser_metadata() {
+	execute_request 'userData.json' '-';
+}
+
+# Parameters:
+# - game id
+# Returns: game metadata json
+get_game_metadata() {
+	execute_request "account/gameDetails/$1.json" '-';
+}
+
+# Parameters:
+# - game id
+# - download identifier
+# Returns: nothing
+download() {
+	execute_request "$1" "$DOWNLOAD_LOCATION-$2" '--show-progress';
+}
+
+# Parameters: none
+# Returns: nothing
+is_version() {
+	if [ ! -v SHOWVERSION ]; then
+		return 0;
+	fi;
+	echo $VERSION
+	exit 0;
+}
+
+# Parameters: none
+# Returns: nothing
+is_help() {
+	if [ ! -v SHOWHELP ]; then
+		return 0;
+	fi;
+	
+	log "$DETAIL-p$TEXT, $DETAIL--platforms";
+	log "   A comma-separated list of platforms.";
+	log "   Supported are ${DETAIL}linux$TEXT, ${DETAIL}mac$TEXT, and ${DETAIL}windows$TEXT.";
+	log "$DETAIL-g$TEXT, $DETAIL--games";
+	log "   A comma-separated list of games to download.";
+	log "   To get the list of games, please visit ${DETAIL}https://www.gogdb.org/$TEXT, find your games, and";
+	log "   use their ID values.";
+	log "   For example:";
+	log "   ${DETAIL}  1207666073,1296025128,2083200433";
+	log "   will download the games Akalabeth: World of Doom, M.U.L.E., and Dragon's Lair Trilogy.";
+	log "   Do note that GOG archiver is not a piracy tool, and can only download games your account";
+	log "   owns.";
+	log "$DETAIL-c$TEXT, $DETAIL--colour$TEXT, $DETAIL--color";
+	log "   How much colour should be used in the output.";
+	log "   Choose between ${DETAIL}all$TEXT, ${DETAIL}less$TEXT, ${DETAIL}some$TEXT, and ${DETAIL}none$TEXT. ${DETAIL}less$TEXT is used by default.";
+	log "$DETAIL-h$TEXT, $DETAIL--help";
+	log "   Displays this help page.";
+	log "$DETAIL-b$TEXT, $DETAIL--no-banner";
+	log "   Hides the banner.";
+	log "$DETAIL-v$TEXT, $DETAIL--version";
+	log "   Prints GOG archiver's version.";
+	exit 0;
+}
+
+# Parameters:
+# - path
+# - output file (hyphen for stdout)
+# - additional wget parameters
+# Returns: wget's output
+execute_request() {
+	wget "https://www.gog.com/$1" \
+		--header 'accept: application/json' \
+		--header 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36' \
+		--header "cookie: gog-al=$AUTH" \
+		--header 'dnt: 1' \
+		"$3" \
+		-q \
+		-O "$2"
+}
+
+# Parameters: none
+# Returns: nothing
+check_commands() {
+	for command in "${DEPENDENCIES[@]}"; do
+		if ! command -v "$command" > /dev/null; then
+			elog "$DETAIL$command$TEXT is required for this script. It is likely in the '$command' package of your distribution.";
+			exit 1;
+		fi
+	done;
+}
+
+# Parameters: none
+# Returns: nothing
+check_root() {
+	if ! test -d "$GAR_ROOT"; then
+		elog "The GOG archiver root directory at $DETAIL$GAR_ROOT$TEXT does not exist or is not a directory.";
+		exit 1;
+	fi
+}
+
+# Parameters: none
+# Returns: nothing
+check_arguments() {
+	if [ -z "$PLATFORMS" ]; then
+		elog "Please specify a comma-separated list of platforms with $DETAIL--platforms$TEXT. Supported are ${DETAIL}linux$TEXT, ${DETAIL}mac$TEXT, and ${DETAIL}windows$TEXT.";
+		exit 1;
+	fi
+	if [ -z "$GAMES" ]; then
+		elog "Please specify a list of games with $DETAIL--games$TEXT. Consult $DETAIL--help$TEXT if you don't know what to do.";
+		exit 1;
+	fi
+}
+
+# Parameters: none
+# Returns: nothing
+check_authorization() {
+	local user_metadata;
+	local username;
+	ilog "Checking authentication...";
+	user_metadata="$(get_selfuser_metadata)";
+	if [[ "$(echo "$user_metadata" | jq -r '.isLoggedIn')" == 'true' ]]; then
+		username="$(echo "$user_metadata" | jq -r '.username')";
+		echo -e "$LOW	   ┗ ${TEXT}Logged in as $DETAIL$username$TEXT.$R";
+	else
+		elog "Invalid authorization cookie has been provided. Please make sure that you're using the exact value of the 'gog-al' cookie from your browser.";
+		exit 1;
+	fi
+}
+
+# Parameters: none
+# Returns: nothing
+check_platform() {
+	if ! printf '%s' "$1" | grep -E '(linux|windows|mac)' > /dev/null; then
+		elog "$DETAIL$1$TEXT is not a supported platform. Please use ${DETAIL}linux$TEXT, ${DETAIL}mac$TEXT, or ${DETAIL}windows$TEXT.";
+		return 1;
+	fi
+}
+
+# Parameters:
+# - json
+# - jq query
+# - additional jq arguments
+# Returns: result
+get_from_json() {
+	echo "$1" | jq "$2" "$3"
+}
+
+# Parameters:
+# - download metadata json
+# Returns: nothing
+# Sets:
+# - name
+# - version
+# - size
+# - manualUrl
+set_download_metadata() {
+	name="$(get_from_json "$download" '.name' '-r')";
+	version="$(get_from_json "$download" '.version' '-r')";
+	size="$(get_from_json "$download" '.size' '-r')";
+	manualUrl="$(get_from_json "$download" '.manualUrl' '-r')";
+}
+
+# Perform a sanity check
+is_version
+banner
+is_help
+check_commands;
+check_root;
+check_arguments;
+check_authorization;
+
+# Iterate over all IDs in 'games'
+for id in ""${GAMES//,/ }; do
+	ilog "Reading metadata of $DETAIL$id$TEXT...";
+	metadata="$(get_game_metadata "$id")";
+	if [[ "$metadata" == '[]' ]]; then
+		elog "Unable to fetch metadata for $DETAIL$id$TEXT. Does the currently authenticated account own the game?.";
+		continue;
+	fi;
+	
+	title="$(get_from_json "$metadata" '.title' '-r')";
+
+	for plat in ${PLATFORMS//,/ }; do
+		platform="$(printf '%s' "$plat" 2> /dev/null | tr '[:upper:]' '[:lower:]')";
+		check_platform "$platform" || continue;
+		
+		if [[ "$(get_from_json "$metadata" ".downloads[0][1].$platform" '-r')" == 'null' ]]; then
+			elog "$DETAIL$title$TEXT does not feature a release compatible with $DETAIL$platform$TEXT.";
+			continue;
+		fi
+		
+		ilog "Extracted metadata for $DETAIL$title$TEXT on $DETAIL$platform$TEXT:";
+		
+		downloads="$(get_from_json "$metadata" ".downloads[0][1].$platform|.[]" '-rc')";
+		while IFS= read -r download; do
+			set_download_metadata;
+			echo -e "$LOW	   ┣ $DETAIL$name$R";
+			echo -e "$LOW	   ┃ ┣ ${TEXT}Version: $DETAIL$version$R";
+			echo -e "$LOW	   ┃ ┗ ${TEXT}Size:	$DETAIL$size$R";
+		done <<< "$downloads";
+		
+		directory="$GAR_ROOT/$DOWNLOADS_ROOT/$title/$platform";
+		[ -d "$directory" ] || mkdir -p "$directory";
+
+		while IFS= read -r download; do
+			set_download_metadata;
+			cleanname="$(printf '%s' "$name" | tr -d ')(.' | tr ' ' '_')"
+			file="$directory/$cleanname-$version";
+			if compgen -G "$file*" > /dev/null; then
+				ilog "Latest version of $DETAIL$title/$name$TEXT for $DETAIL$platform$TEXT is already downloaded";
+			else
+				ilog "Downloading $DETAIL$title/$name$TEXT version $DETAIL$version$TEXT...";
+				download "$manualUrl" "$platform-$cleanname"
+				location="$DOWNLOAD_LOCATION-$platform-$cleanname"
+				extension="$(file -b --extension "$location" | perl -pe 's#^([^?]*?)\/.*$#.\1#p' | sed 's/???//')"
+				[ -n "$extension" ] && dlog "Extension is $DETAIL$extension$TEXT.";
+				fullfile="$file$extension"
+				if [ -z "$extension" ] && printf '%s' "$platform" | grep -E '(linux|mac)' > /dev/null; then
+					chmod +x "$location";
+					dlog "Platform is linux or mac, and the extension could not be determined, so I'm setting the executable bit on the file.";
+				fi
+				mv "$location" "$fullfile"
+				ilog "Downloaded to $DETAIL$fullfile$TEXT.";
+			fi
+		done <<< "$downloads";
+	done
+done
+dlog "Finished execution non-erroneously."
