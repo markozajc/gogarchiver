@@ -1,12 +1,12 @@
 #!/bin/bash
-######### GOG ARCHIVER #########
-# GOG  archiver  is  a  fairly #
-# simple self-contained script #
-# used to download and archive #
-# games from gog.com.          #
-# Licensed under AGPL 3.0      #
-# By Marko Zajc                #
-################################
+########### GOG ARCHIVER ###########
+#   GOG  archiver  is  a  fairly   #
+#   simple self-contained script   #
+#   used to download and archive   #
+#   games from gog.com.            #
+#   Licensed under AGPL 3.0        #
+#   By Marko Zajc                  #
+####################################
 
 VERSION="1.0"
 
@@ -198,6 +198,10 @@ is_help() {
 	log "$DETAIL-c$TEXT, $DETAIL--colour$TEXT, $DETAIL--color";
 	log "   How much colour should be used in the output.";
 	log "   Choose between ${DETAIL}all$TEXT, ${DETAIL}less$TEXT, ${DETAIL}some$TEXT, and ${DETAIL}none$TEXT. ${DETAIL}less$TEXT is used by default.";
+	log "$DETAIL-r$TEXT, $DETAIL--root";
+	log "   Sets the root directory for GOG archiver.";
+	log "   The root directory holds downloaded games and the authorization cookie file. By default";
+	log "   it is the same directory as the script file.";
 	log "$DETAIL-h$TEXT, $DETAIL--help";
 	log "   Displays this help page.";
 	log "$DETAIL-b$TEXT, $DETAIL--no-banner";
