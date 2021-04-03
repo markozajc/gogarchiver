@@ -44,6 +44,10 @@ while [[ $# -gt 0 ]]; do
 			SHOWVERSION=true;
 			shift;
 		;;
+		-i|--ignore-types)
+			IGNORE="$2"
+			shift; shift;
+		;;
 		*)   
 			POSITIONAL+=("$1");
 			shift;
@@ -86,6 +90,12 @@ ERROR="[${ERRORCOLOUR}ERROR$TEXT] "
 DEBUG="[${DEBUGCOLOUR}DEBUG$TEXT] "
 DOWNLOADS_ROOT='download'
 DEPENDENCIES=( jq perl wget )
+
+# Parameters:
+# - substring
+# - text
+# Returns: nothing
+string_contains() { [ -z "$1" ] || { [ -z "${2##*$1*}" ] && [ -n "$2" ];};}
 
 # Parameters:
 # - message
@@ -208,6 +218,15 @@ is_help() {
 	log "   Hides the banner.";
 	log "$DETAIL-v$TEXT, $DETAIL--version";
 	log "   Prints GOG archiver's version.";
+	log "$DETAIL-i$TEXT, $DETAIL--ignore-types";
+	log "   Comma-separated list of types of downloads to ignore, for example ${DETAIL}patch$TEXT or ${DETAIL}installer$TEXT.";
+	log "${DETAIL}Examples:";
+	log "   ${DETAIL}gogarchiver -p windows -g 1207665503 -i patch";
+	log "      Downloads the Windows release of Terraria, ignoring patches."
+	log ""
+	log "   ${DETAIL}gogarchiver -p windows,linux,mac -g 1296025128 -c none";
+	log "      Downloads windows, linux, and mac releases of Akalabeth: World of Doom, and disables";
+	log "      colour in the output."
 	exit 0;
 }
 
@@ -302,11 +321,13 @@ get_from_json() {
 # - version
 # - size
 # - manualUrl
+# -type
 set_download_metadata() {
 	name="$(get_from_json "$download" '.name' '-r')";
 	version="$(get_from_json "$download" '.version' '-r')";
 	size="$(get_from_json "$download" '.size' '-r')";
 	manualUrl="$(get_from_json "$download" '.manualUrl' '-r')";
+	type="$(printf '%s' "$manualUrl" | perl -pe 's#\/downloads\/[a-z_]*?\/.{2}\d+(.*?)\d+#\1#p')"
 }
 
 # Perform a sanity check
@@ -345,6 +366,7 @@ for id in ""${GAMES//,/ }; do
 			set_download_metadata;
 			echo -e "$LOW	   ┣ $DETAIL$name$R";
 			echo -e "$LOW	   ┃ ┣ ${TEXT}Version: $DETAIL$version$R";
+			echo -e "$LOW	   ┃ ┣ ${TEXT}Type:	$DETAIL$type$R";
 			echo -e "$LOW	   ┃ ┗ ${TEXT}Size:	$DETAIL$size$R";
 		done <<< "$downloads";
 		
@@ -353,10 +375,22 @@ for id in ""${GAMES//,/ }; do
 
 		while IFS= read -r download; do
 			set_download_metadata;
+			unset ignored;
+			for ignore in ${IGNORE//,/ }; do
+				if [ "$type" == "$ignore" ]; then
+					ignored=true;
+					break;
+				fi;
+			done;
+			if [ -v ignored ]; then
+				ilog "Not downloading $DETAIL$title/$name$TEXT for $DETAIL$platform$TEXT because it is of type $DETAIL$type$TEXT, which is ignored."
+				continue;
+			fi;
+			
 			cleanname="$(printf '%s' "$name" | tr -d ')(.' | tr ' ' '_')"
 			file="$directory/$cleanname-$version";
 			if compgen -G "$file*" > /dev/null; then
-				ilog "Latest version of $DETAIL$title/$name$TEXT for $DETAIL$platform$TEXT is already downloaded";
+				ilog "Not downloading $DETAIL$title/$name$TEXT for $DETAIL$platform$TEXT because it is already downloaded";
 			else
 				ilog "Downloading $DETAIL$title/$name$TEXT version $DETAIL$version$TEXT...";
 				download "$manualUrl" "$platform-$cleanname"
