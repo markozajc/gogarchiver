@@ -9,7 +9,7 @@ Help is included in the script (run it with `--help` or `-h`).
 * jq (package `jq` on most distributions)
 * A GOG authorization cookie (open firefox, log into GOG, open developer tools, navigate to the 'Storage' tab, find the `gog-al` cookie, and copy its value into a file called `authorization.txt` in the same directory as the script).
 * A list of game IDs to archive (you can get the IDs on https://www.gogdb.org/, but your account still has to have the games in its inventory, even if they're free)
-* You're usually also goint to need a computer and an internet connection for this
+* You're usually also going to need a computer and an internet connection for this
 
 ## Available on:
 * https://git.zajc.eu.org/gogarchiver.git/
