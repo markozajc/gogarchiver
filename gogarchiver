@@ -8,7 +8,7 @@
 #   by Marko Zajc                  #
 ####################################
 
-VERSION="1.0-1";
+VERSION="1.1";
 DEBUG_ENABLED='false';
 
 # Argument parsing
@@ -105,6 +105,14 @@ log() {
 	echo -e "$TEXT$1$R";
 }
 
+# - message
+# Returns: the wrapped log line
+wlog() {
+	printf "$TEXT";
+	echo -e "$1" | fmt;
+	printf "$R";
+}
+
 # Parameters:
 # - message
 # Returns: the log line
@@ -144,7 +152,7 @@ check_files() {
 	if [ ! -s "$GAR_ROOT/authorization.txt" ]; then
 		touch "$GAR_ROOT/authorization.txt"
 		elog "Authorization cookie not found. Please log into your GOG account in a browser, and";
-		elog "copy the ${DETAIL}gog-al$TEXT cookie into $DETAIL$GAR_ROOT/authorization.txt$TEXT.";
+		elog "copy the ${DETAIL}gog-al$TEXT cookie into $DETAIL$GAR_ROOT/authorization$TEXT.";
 		elog "Copy just the cookie value, not including the 'gog-alc' part or any quotation marks";
 		elog "or apostrophes.";
 		exit 1;
@@ -154,7 +162,7 @@ check_files() {
 # Configuration
 [ -v GAR_ROOT ] || GAR_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )";
 check_files;
-AUTH=$(head -n 1 "$GAR_ROOT/authorization.txt")
+AUTH=$(head -n 1 "$GAR_ROOT/authorization")
 DOWNLOAD_LOCATION="$GAR_ROOT/gog_download"
 
 # Parameters:
@@ -196,40 +204,33 @@ is_help() {
 		return 0;
 	fi;
 	
-	log "$DETAIL-p$TEXT, $DETAIL--platforms";
-	log "   A comma-separated list of platforms.";
-	log "   Supported are ${DETAIL}linux$TEXT, ${DETAIL}mac$TEXT, and ${DETAIL}windows$TEXT.";
-	log "$DETAIL-g$TEXT, $DETAIL--games";
-	log "   A comma-separated list of games to download.";
-	log "   To get the list of games, please visit ${DETAIL}https://www.gogdb.org/$TEXT, find your games, and";
-	log "   use their ID values.";
-	log "   For example:";
-	log "   ${DETAIL}  1207666073,1296025128,2083200433";
-	log "   will download the games Akalabeth: World of Doom, M.U.L.E., and Dragon's Lair Trilogy.";
-	log "   Do note that GOG archiver is not a piracy tool, and can only download games your account";
-	log "   owns.";
-	log "$DETAIL-c$TEXT, $DETAIL--colour$TEXT, $DETAIL--color";
-	log "   How much colour should be used in the output.";
-	log "   Choose between ${DETAIL}all$TEXT, ${DETAIL}less$TEXT, ${DETAIL}some$TEXT, and ${DETAIL}none$TEXT. ${DETAIL}less$TEXT is used by default.";
-	log "$DETAIL-r$TEXT, $DETAIL--root";
-	log "   Sets the root directory for GOG archiver.";
-	log "   The root directory holds downloaded games and the authorization cookie file. By default";
-	log "   it is the same directory as the script file.";
-	log "$DETAIL-h$TEXT, $DETAIL--help";
-	log "   Displays this help page.";
-	log "$DETAIL-b$TEXT, $DETAIL--no-banner";
-	log "   Hides the banner.";
-	log "$DETAIL-v$TEXT, $DETAIL--version";
-	log "   Prints GOG archiver's version.";
-	log "$DETAIL-i$TEXT, $DETAIL--ignore-types";
-	log "   Comma-separated list of types of downloads to ignore, for example ${DETAIL}patch$TEXT or ${DETAIL}installer$TEXT.";
-	log "${DETAIL}Examples:";
-	log "   ${DETAIL}gogarchiver -p windows -g 1207665503 -i patch";
-	log "      Downloads the Windows release of Terraria, ignoring patches."
-	log ""
-	log "   ${DETAIL}gogarchiver -p windows,linux,mac -g 1296025128 -c none";
-	log "      Downloads windows, linux, and mac releases of Akalabeth: World of Doom, and disables";
-	log "      colour in the output."
+	wlog "$DETAIL-p$TEXT, $DETAIL--platforms";
+	wlog "   A comma-separated list of platforms. Supported are ${DETAIL}linux$TEXT, ${DETAIL}mac$TEXT, and ${DETAIL}windows$TEXT.";
+	wlog "$DETAIL-g$TEXT, $DETAIL--games";
+	wlog "   A comma-separated list of games to download. To get the list of games, please visit ${DETAIL}https://www.gogdb.org/$TEXT, find your games, and use their ID values.";
+	wlog "   For example:";
+	wlog "   ${DETAIL}1207666073,1296025128,2083200433$TEXT will download the games Akalabeth: World of Doom, M.U.L.E., and Dragon's Lair Trilogy. Do note that GOG archiver is not a piracy tool, and can only download games your account owns.";
+	wlog "$DETAIL-c$TEXT, $DETAIL--colour$TEXT, $DETAIL--color";
+	wlog "   How much colour should be used in the output.";
+	wlog "   Choose between ${DETAIL}all, less, some,$TEXT and ${DETAIL}none$TEXT.";
+	wlog "   ${DETAIL}less$TEXT is used by default.";
+	wlog "$DETAIL-r$TEXT, $DETAIL--root";
+	wlog "   Sets the root directory for GOG archiver.";
+	wlog "   The root directory holds downloaded games and the authorization cookie file. By default it is the same directory as the script file.";
+	wlog "$DETAIL-h$TEXT, $DETAIL--help";
+	wlog "   Displays this help page.";
+	wlog "$DETAIL-b$TEXT, $DETAIL--no-banner";
+	wlog "   Hides the banner.";
+	wlog "$DETAIL-v$TEXT, $DETAIL--version";
+	wlog "   Prints GOG archiver's version.";
+	wlog "$DETAIL-i$TEXT, $DETAIL--ignore-types";
+	wlog "   Comma-separated list of types of downloads to ignore, for example ${DETAIL}patch$TEXT or ${DETAIL}installer$TEXT.";
+	wlog "${DETAIL}Examples:";
+	wlog "   ${DETAIL}gogarchiver -p windows -g 1207665503 -i patch";
+	wlog "      Downloads the Windows release of Terraria, ignoring patches."
+	wlog ""
+	wlog "   ${DETAIL}gogarchiver -p windows,linux,mac -g 1296025128 -c none";
+	wlog "      Downloads windows, linux, and mac releases of Akalabeth: World of Doom, and disables colour in the output."
 	exit 0;
 }
 
