@@ -5,10 +5,11 @@
 #   used to download and archive   #
 #   games from gog.com.            #
 #   Licensed under AGPL 3.0        #
-#   By Marko Zajc                  #
+#   by Marko Zajc                  #
 ####################################
 
-VERSION="1.0"
+VERSION="1.0-1";
+DEBUG_ENABLED='false';
 
 # Argument parsing
 COLOUR='less';
@@ -132,7 +133,9 @@ ilog() {
 # - message
 # Returns: the log line
 dlog() {
-	true #echo -e "$DEBUG$TEXT$1$R";
+	if [[ $DEBUG_ENABLED = 'true' ]]; then
+		echo -e "$DEBUG$TEXT$1$R";
+	fi;
 }
 
 # Parameters: none
@@ -298,7 +301,7 @@ check_authorization() {
 # Parameters: none
 # Returns: nothing
 check_platform() {
-	if ! printf '%s' "$1" | grep -E '(linux|windows|mac)' > /dev/null; then
+	if ! grep -E '(linux|windows|mac)' <<< "$1" > /dev/null; then
 		elog "$DETAIL$1$TEXT is not a supported platform. Please use ${DETAIL}linux$TEXT, ${DETAIL}mac$TEXT, or ${DETAIL}windows$TEXT.";
 		return 1;
 	fi
@@ -327,7 +330,7 @@ set_download_metadata() {
 	version="$(get_from_json "$download" '.version' '-r')";
 	size="$(get_from_json "$download" '.size' '-r')";
 	manualUrl="$(get_from_json "$download" '.manualUrl' '-r')";
-	type="$(printf '%s' "$manualUrl" | perl -pe 's#\/downloads\/[a-z_]*?\/.{2}\d+(.*?)\d+#\1#p')"
+	type="$(perl -pe 's#\/downloads\/[a-z_]*?\/.{2}\d+(.*?)\d+#\1#p' <<< "$manualUrl")"
 }
 
 # Perform a sanity check
@@ -351,7 +354,7 @@ for id in ""${GAMES//,/ }; do
 	title="$(get_from_json "$metadata" '.title' '-r')";
 
 	for plat in ${PLATFORMS//,/ }; do
-		platform="$(printf '%s' "$plat" 2> /dev/null | tr '[:upper:]' '[:lower:]')";
+		platform="$(tr '[:upper:]' '[:lower:]' <<< "$plat")";
 		check_platform "$platform" || continue;
 		
 		if [[ "$(get_from_json "$metadata" ".downloads[0][1].$platform" '-r')" == 'null' ]]; then
@@ -387,7 +390,7 @@ for id in ""${GAMES//,/ }; do
 				continue;
 			fi;
 			
-			cleanname="$(printf '%s' "$name" | tr -d ')(.' | tr ' ' '_')"
+			cleanname="$(tr -d ')(.' <<< "$name" | tr ' ' '_')"
 			file="$directory/$cleanname-$version";
 			if compgen -G "$file*" > /dev/null; then
 				ilog "Not downloading $DETAIL$title/$name$TEXT for $DETAIL$platform$TEXT because it is already downloaded";
@@ -398,7 +401,7 @@ for id in ""${GAMES//,/ }; do
 				extension="$(file -b --extension "$location" | perl -pe 's#^([^?]*?)\/.*$#.\1#p' | sed 's/???//')"
 				[ -n "$extension" ] && dlog "Extension is $DETAIL$extension$TEXT.";
 				fullfile="$file$extension"
-				if [ -z "$extension" ] && printf '%s' "$platform" | grep -E '(linux|mac)' > /dev/null; then
+				if [ -z "$extension" ] && grep -E '(linux|mac)' <<< "$platform" > /dev/null; then
 					chmod +x "$location";
 					dlog "Platform is linux or mac, and the extension could not be determined, so I'm setting the executable bit on the file.";
 				fi
