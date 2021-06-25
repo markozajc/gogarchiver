@@ -144,7 +144,7 @@ check_files() {
 	if [ ! -s "$GAR_ROOT/authorization.txt" ]; then
 		touch "$GAR_ROOT/authorization.txt"
 		elog "Authorization cookie not found. Please log into your GOG account in a browser, and";
-		elog "copy the ${DETAIL}gog-al$TEXT cookie into $DETAIL$GAR_ROOT/authorization$TEXT.";
+		elog "copy the ${DETAIL}gog-al$TEXT cookie into $DETAIL$GAR_ROOT/authorization.txt$TEXT.";
 		elog "Copy just the cookie value, not including the 'gog-alc' part or any quotation marks";
 		elog "or apostrophes.";
 		exit 1;
@@ -154,7 +154,7 @@ check_files() {
 # Configuration
 [ -v GAR_ROOT ] || GAR_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )";
 check_files;
-AUTH=$(head -n 1 "$GAR_ROOT/authorization")
+AUTH=$(head -n 1 "$GAR_ROOT/authorization.txt")
 DOWNLOAD_LOCATION="$GAR_ROOT/gog_download"
 
 # Parameters:
