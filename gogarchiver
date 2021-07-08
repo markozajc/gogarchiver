@@ -162,7 +162,7 @@ check_files() {
 # Configuration
 [ -v GAR_ROOT ] || GAR_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )";
 check_files;
-AUTH=$(head -n 1 "$GAR_ROOT/authorization")
+AUTH=$(head -n 1 "$GAR_ROOT/authorization.txt")
 DOWNLOAD_LOCATION="$GAR_ROOT/gog_download"
 
 # Parameters:
